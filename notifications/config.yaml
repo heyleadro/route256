@@ -1,0 +1,9 @@
+kafka:
+  topic: orders
+  brokers:
+     - "kafka1:29091"
+     - "kafka2:29092"
+     - "kafka3:29093"
+telegram:
+  token: "5994762454:AAFfNqNKmUF-Y4OTrsXIXu5zm1wDBbiUAys"
+  chat_id: -935760045

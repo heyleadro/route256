@@ -1,0 +1,484 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>loms: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">route256/loms/internal/service/loms/cancel_order.go (0.0%)</option>
+				
+				<option value="file1">route256/loms/internal/service/loms/create_order.go (0.0%)</option>
+				
+				<option value="file2">route256/loms/internal/service/loms/list_order.go (0.0%)</option>
+				
+				<option value="file3">route256/loms/internal/service/loms/mock_Sender.go (90.9%)</option>
+				
+				<option value="file4">route256/loms/internal/service/loms/notify_order_update.go (100.0%)</option>
+				
+				<option value="file5">route256/loms/internal/service/loms/order_payed.go (0.0%)</option>
+				
+				<option value="file6">route256/loms/internal/service/loms/service.go (0.0%)</option>
+				
+				<option value="file7">route256/loms/internal/service/loms/stocks.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package loms
+
+import (
+        "context"
+        "fmt"
+        "log"
+)
+
+func (s *Service) CancelOrder(ctx context.Context, orderID int64) error <span class="cov0" title="0">{
+        log.Printf("cancelling order: %d", orderID)
+
+        status, err := s.ordersRepository.GetOrderStatus(ctx, orderID)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("get order status response: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if status != "awaiting payment" </span><span class="cov0" title="0">{
+                return fmt.Errorf("order status incorrect: %s", status)
+        }</span>
+
+        <span class="cov0" title="0">err = s.transactionManager.RunRepeatableRead(ctx, func(ctxTx context.Context) error </span><span class="cov0" title="0">{
+                userItems, err := s.ordersRepository.GetOrderItems(ctxTx, orderID)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("get order items query: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">err = s.ordersRepository.UpdateOrderStatus(ctxTx, orderID, "cancelled")
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("update order status query: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">for _, item := range userItems </span><span class="cov0" title="0">{
+                        err := s.ordersRepository.ReturnStock(ctxTx, item)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("free reserved items query: %w", err)
+                        }</span>
+                }
+
+                <span class="cov0" title="0">return nil</span>
+        })
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("cancel order tx: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">err = s.Notify(ctx, orderID, "cancelled")
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("cancel notify: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">log.Printf("cancelled order: %d ", orderID)
+
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package loms
+
+import (
+        "context"
+        "fmt"
+        "log"
+        "route256/loms/internal/model"
+)
+
+// CreateOrder invoked on createOrder Handle with request from checkout on purchase
+func (s *Service) CreateOrder(ctx context.Context, user int64, userItems []model.UserItems) (int64, error) <span class="cov0" title="0">{
+        log.Printf("creating order for user: %d", user)
+
+        var orderID int64
+
+        err := s.transactionManager.RunRepeatableRead(ctx, func(ctxTx context.Context) error </span><span class="cov0" title="0">{
+                toBeOrdered := make([]model.UserItems, 0, len(userItems))
+                for _, item := range userItems </span><span class="cov0" title="0">{
+                        stocks, err := s.ordersRepository.Stocks(ctxTx, item.SKU)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("stock query db: %w", err)
+                        }</span>
+
+                        <span class="cov0" title="0">var reservedCount uint64
+                        var reservedStock []model.StockItem
+
+                        for _, stock := range stocks </span><span class="cov0" title="0">{
+                                currentAmount := uint64(item.Count) - reservedCount // how much more items do we need to reserve from another stock
+
+                                if currentAmount == 0 </span><span class="cov0" title="0">{
+                                        break</span>
+                                }
+
+                                <span class="cov0" title="0">if stock.Count &gt;= currentAmount </span><span class="cov0" title="0">{
+                                        reservedStock = append(reservedStock, model.StockItem{
+                                                WarehouseID: stock.WarehouseID,
+                                                Count:       currentAmount,
+                                        })
+                                        reservedCount += currentAmount
+                                }</span> else<span class="cov0" title="0"> {
+                                        reservedStock = append(reservedStock, model.StockItem{
+                                                WarehouseID: stock.WarehouseID,
+                                                Count:       stock.Count,
+                                        })
+                                        reservedCount += stock.Count
+                                }</span>
+                        }
+
+                        <span class="cov0" title="0">if reservedCount != uint64(item.Count) </span><span class="cov0" title="0">{
+                                return fmt.Errorf("not enough stock for item: %d", item.SKU)
+                        }</span>
+
+                        <span class="cov0" title="0">for _, reservation := range reservedStock </span><span class="cov0" title="0">{
+                                err := s.ordersRepository.ReserveStock(ctxTx, item.SKU, reservation)
+                                if err != nil </span><span class="cov0" title="0">{
+                                        return fmt.Errorf("query reserve stock: %w", err)
+                                }</span>
+
+                                <span class="cov0" title="0">toBeOrdered = append(toBeOrdered, model.UserItems{
+                                        WarehouseID: reservation.WarehouseID,
+                                        SKU:         item.SKU,
+                                        Count:       uint16(reservation.Count),
+                                })</span>
+                        }
+                }
+
+                <span class="cov0" title="0">dbOrderID, err := s.ordersRepository.CreateOrder(ctxTx, user, toBeOrdered)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("query create order: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">err = s.ordersRepository.UpdateOrderStatus(ctxTx, dbOrderID, "awaiting payment")
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("update order status query: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">orderID = dbOrderID
+                return nil</span>
+        })
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("create order tx: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">err = s.Notify(ctx, orderID, "awaiting payment")
+        if err != nil </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("create order notify: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return orderID, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package loms
+
+import (
+        "context"
+        "fmt"
+        "log"
+        "route256/loms/internal/model"
+)
+
+// ListOrder return Order struct
+func (s *Service) ListOrder(ctx context.Context, orderID int64) (model.Order, error) <span class="cov0" title="0">{
+        log.Printf("listing order for orderID: %d", orderID)
+
+        order, err := s.ordersRepository.ListOrder(ctx, orderID)
+        if err != nil </span><span class="cov0" title="0">{
+                return model.Order{}, fmt.Errorf("get order response: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return order, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Code generated by mockery v2.30.1. DO NOT EDIT.
+
+package loms
+
+import (
+        model "route256/loms/internal/model"
+
+        mock "github.com/stretchr/testify/mock"
+)
+
+// MockSender is an autogenerated mock type for the Sender type
+type MockSender struct {
+        mock.Mock
+}
+
+// SendMessage provides a mock function with given fields: message
+func (_m *MockSender) SendMessage(message model.ProducerMessage) error <span class="cov8" title="1">{
+        ret := _m.Called(message)
+
+        var r0 error
+        if rf, ok := ret.Get(0).(func(model.ProducerMessage) error); ok </span><span class="cov0" title="0">{
+                r0 = rf(message)
+        }</span> else<span class="cov8" title="1"> {
+                r0 = ret.Error(0)
+        }</span>
+
+        <span class="cov8" title="1">return r0</span>
+}
+
+// NewMockSender creates a new instance of MockSender. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewMockSender(t interface {
+        mock.TestingT
+        Cleanup(func())
+}) *MockSender <span class="cov8" title="1">{
+        mock := &amp;MockSender{}
+        mock.Mock.Test(t)
+
+        t.Cleanup(func() </span><span class="cov8" title="1">{ mock.AssertExpectations(t) }</span>)
+
+        <span class="cov8" title="1">return mock</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package loms
+
+import (
+        "context"
+        "fmt"
+        "log"
+        "route256/loms/internal/model"
+)
+
+// add unit test
+func (s *Service) Notify(ctx context.Context, orderID int64, status string) error <span class="cov8" title="1">{
+        log.Printf("notifying about order: %d", orderID)
+
+        err := s.sender.SendMessage(model.ProducerMessage{
+                OrderID: orderID,
+                Status:  status,
+        })
+        if err != nil </span><span class="cov8" title="1">{
+                return fmt.Errorf("notify : %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package loms
+
+import (
+        "context"
+        "fmt"
+        "log"
+)
+
+// OrderPayed just updates orderstorage with status payed, because "item reservation" is dummy
+func (s *Service) OrderPayed(ctx context.Context, orderID int64) error <span class="cov0" title="0">{
+        log.Printf("paying order: %d", orderID)
+
+        status, err := s.ordersRepository.GetOrderStatus(ctx, orderID)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("get order status response: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if status != "awaiting payment" </span><span class="cov0" title="0">{
+                return fmt.Errorf("payment status incorrect: %s", status)
+        }</span>
+
+        <span class="cov0" title="0">err = s.transactionManager.RunRepeatableRead(ctx, func(ctxTx context.Context) error </span><span class="cov0" title="0">{
+                userItems, err := s.ordersRepository.GetOrderItems(ctxTx, orderID)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("get order items query: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">err = s.ordersRepository.UpdateOrderStatus(ctxTx, orderID, "payed")
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("update order status query: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">for _, item := range userItems </span><span class="cov0" title="0">{
+                        err := s.ordersRepository.FreeReservedStock(ctxTx, item)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return fmt.Errorf("free reserved items query: %w", err)
+                        }</span>
+                }
+
+                <span class="cov0" title="0">return nil</span>
+        })
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("order payed tx: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">err = s.Notify(ctx, orderID, "payed")
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("order payed notify: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">log.Printf("payed for order: %d, status: %s", orderID, "payed")
+
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package loms
+
+import (
+        "context"
+        "route256/loms/internal/model"
+)
+
+// type Warehouser interface {
+//         UpdateWarehouse(stockItem model.StockItem) error
+//         GetWarehouses() ([]model.StockItem, error)
+//         ReturnReserved(stockItem model.StockItem)
+// }
+
+// type OrderStorager interface {
+//         PutOrder(orderID int64, user int64, userItems []model.UserItems, status string)
+//         GetOrder(orderID int64) (model.Order, error)
+//         UpdateOrder(orderID int64, status string)
+// }
+
+type TransactionManager interface {
+        RunRepeatableRead(ctx context.Context, fn func(ctxTx context.Context) error) error
+}
+
+type OrdersRepository interface {
+        CreateOrder(ctx context.Context, user int64, userItems []model.UserItems) (int64, error)
+        Stocks(ctx context.Context, sku uint32) ([]model.StockItem, error)
+        ReserveStock(ctx context.Context, sku uint32, stockItem model.StockItem) error
+        ListOrder(ctx context.Context, orderID int64) (model.Order, error)
+        UpdateOrderStatus(ctx context.Context, orderID int64, status string) error
+        ReturnStock(ctx context.Context, userItems model.UserItems) error
+        GetOrderStatus(ctx context.Context, orderID int64) (string, error)
+        GetOrderItems(ctx context.Context, orderID int64) ([]model.UserItems, error)
+        FreeReservedStock(ctx context.Context, userItems model.UserItems) error
+}
+
+type Sender interface { // unit test on this
+        SendMessage(message model.ProducerMessage) error
+}
+
+type Service struct {
+        transactionManager TransactionManager
+        ordersRepository   OrdersRepository
+        sender             Sender
+}
+
+func NewService(tx TransactionManager, repo OrdersRepository, sender Sender) *Service <span class="cov0" title="0">{
+        return &amp;Service{
+                transactionManager: tx,
+                ordersRepository:   repo,
+                sender:             sender,
+        }
+}</span>
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package loms
+
+import (
+        "context"
+        "fmt"
+        "log"
+        "route256/loms/internal/model"
+)
+
+func (s *Service) Stocks(ctx context.Context, sku uint32) ([]model.StockItem, error) <span class="cov0" title="0">{
+        log.Printf("listing warehouses for sku: %d", sku)
+
+        stockItem, err := s.ordersRepository.Stocks(ctx, sku)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("stock response: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return stockItem, nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

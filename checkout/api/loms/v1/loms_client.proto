@@ -1,0 +1,94 @@
+syntax = 'proto3';
+
+package loms;
+
+option go_package = "route256/checkout/pkg/loms_v1";
+
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "validate/validate.proto";
+
+service Loms {
+
+  rpc Stocks(StocksRequest) returns (StocksResponse) {
+    option (google.api.http) = {
+      post: "/stocks"
+      body: "*"
+    };
+  }
+
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse) {
+    option (google.api.http) = {
+      post: "/createOrder"
+      body: "*"
+    };
+  }
+
+  rpc ListOrder(ListOrderRequest) returns (ListOrderResponse) {
+    option (google.api.http) = {
+      post: "/listOrder"
+      body: "*"
+    };
+  }
+
+  rpc OrderPayed(OrderPayedRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/orderPayed"
+      body: "*"
+    };
+  }
+
+  rpc CancelOrder(CancelOrderRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/cancelOrder"
+      body: "*"
+    };
+  }
+}
+
+
+message StocksRequest {
+  uint32 sku = 1 [(validate.rules).uint32.gte = 0];
+}
+
+message StocksResponse {
+  repeated StockItem stocks = 1;
+}
+
+message StockItem {
+  int64 warehouseid = 1;
+  uint64 count = 2;
+}
+
+message CreateOrderRequest {
+  int64 user = 1 [(validate.rules).int64.gte = 1];
+  repeated UserItems items = 2 [(validate.rules).repeated.items.message.required = true];
+}
+
+message UserItems {
+  uint32 sku = 1 [(validate.rules).uint32.gte = 0];
+  uint32 count = 2 [(validate.rules).uint32.lte = 65535];
+}
+
+message CreateOrderResponse {
+  int64 orderid = 1;
+}
+
+message ListOrderRequest {
+  int64 orderid = 1 [(validate.rules).int64.gte = 1];
+}
+
+message ListOrderResponse {
+  string status = 1 [(validate.rules).string = {in: ["new", "awaiting payment", "failed", "payed", "cancelled"]}];
+  int64 user = 2;
+  repeated UserItems items = 3;
+}
+
+message OrderPayedRequest {
+  int64 orderid = 1 [(validate.rules).int64.gte = 1];
+}
+
+message CancelOrderRequest {
+  int64 orderid = 1 [(validate.rules).int64.gte = 1];
+}

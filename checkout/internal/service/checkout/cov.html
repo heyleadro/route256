@@ -1,0 +1,601 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>checkout: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">route256/checkout/internal/service/checkout/add_to_cart.go (0.0%)</option>
+				
+				<option value="file1">route256/checkout/internal/service/checkout/delete_from_cart.go (0.0%)</option>
+				
+				<option value="file2">route256/checkout/internal/service/checkout/list_cart.go (93.1%)</option>
+				
+				<option value="file3">route256/checkout/internal/service/checkout/mock_CartLister.go (82.4%)</option>
+				
+				<option value="file4">route256/checkout/internal/service/checkout/mock_CartRepository.go (35.7%)</option>
+				
+				<option value="file5">route256/checkout/internal/service/checkout/mock_OrderCreator.go (82.4%)</option>
+				
+				<option value="file6">route256/checkout/internal/service/checkout/purchase.go (100.0%)</option>
+				
+				<option value="file7">route256/checkout/internal/service/checkout/service.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package checkout
+
+import (
+        "context"
+        "fmt"
+        "log"
+        "route256/checkout/internal/model"
+)
+
+/*
+AddToCart invokes stocks in loms(clients/loms/loms_stocks), updates UserCarts
+called with checkout(localhost):8080/addToCart
+*/
+func (s *Service) AddToCart(ctx context.Context, user int64, sku uint32, count uint16) error <span class="cov0" title="0">{
+        err := s.transactionManager.RunRepeatableRead(ctx, func(ctxTx context.Context) error </span><span class="cov0" title="0">{
+                stocks, err := s.stockChecker.Stocks(ctx, sku) // request of stock in loms
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("get stocks: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">log.Printf("stocks: %v", stocks)
+
+                if !isSufficient(uint64(count), stocks) </span><span class="cov0" title="0">{
+                        return ErrStockInsufficient
+                }</span>
+
+                <span class="cov0" title="0">err = s.cartRepo.AddToCart(ctx, user, sku, count)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("add to cart query: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">return nil</span>
+        })
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("add to cart tx: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func isSufficient(count uint64, stocks []model.Stock) bool <span class="cov0" title="0">{
+        stockSupply := uint64(0)
+        for _, stock := range stocks </span><span class="cov0" title="0">{
+                stockSupply += stock.Count
+                if stockSupply &gt;= count </span><span class="cov0" title="0">{
+                        break</span>
+                }
+        }
+
+        <span class="cov0" title="0">return stockSupply &gt;= count</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package checkout
+
+import (
+        "context"
+        "fmt"
+)
+
+/*
+DeleteFromCart updates UserCart, may delete Cart entry if Count is 0
+called with checkout(localhost):8080/deleteFromCart
+*/
+func (s *Service) DeleteFromCart(ctx context.Context, user int64, sku uint32, count uint16) error <span class="cov0" title="0">{
+        err := s.transactionManager.RunRepeatableRead(ctx, func(ctxTx context.Context) error </span><span class="cov0" title="0">{
+
+                cartCount, err := s.cartRepo.GetUserSkuItemCount(ctx, user, sku)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("get item count query: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">if cartCount &lt; count </span><span class="cov0" title="0">{
+                        return ErrCartInsufficient
+                }</span>
+
+                <span class="cov0" title="0">err = s.cartRepo.DeleteFromCart(ctx, user, sku, count)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("delete from cart query: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">return nil</span>
+        })
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("delete from cart tx: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package checkout
+
+import (
+        "context"
+        "fmt"
+        "log"
+        "route256/checkout/internal/model"
+        "route256/checkout/internal/pkg/workerpool"
+        "sync"
+)
+
+// MaxWorkers limits at once requests
+const MaxWorkers = 5
+
+// struct to store ListCartDescr result and err of each request
+// used for channel inside wp.Exec func
+type ItemDescrWithErr struct {
+        itemDescr model.ItemDescr
+        err       error
+}
+
+/*
+ListCart list get_product response from productservice
+*/
+func (s *Service) ListCart(ctx context.Context, user int64) (*model.ListCartDescr, error) <span class="cov8" title="1">{
+        // getting user items in cart from db
+        cartItems, err := s.cartRepo.GetUserItems(ctx, user)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, ErrNoUserCart
+        }</span>
+
+        <span class="cov8" title="1">wp := workerpool.NewWP(MaxWorkers) // initializing worker pool
+
+        itemsChan := make(chan ItemDescrWithErr, len(cartItems)) // initializing channel to store results from wp
+
+        wg := sync.WaitGroup{} // wg to wait until all cartItems processed
+
+        for _, v := range cartItems </span><span class="cov8" title="1">{
+                wg.Add(1)
+
+                curItem := v // namespace
+
+                err := wp.Exec(ctx, func(ctx context.Context) </span><span class="cov8" title="1">{ // implementing func which will be called in goroutine inside exec
+                        defer wg.Done()
+                        item, err := s.cartLister.GetProducts(ctx, v.SKU) // calling getproducts
+                        itemsChan &lt;- ItemDescrWithErr{                    // writing into channel
+                                itemDescr: model.ItemDescr{
+                                        CartDescr:     curItem,
+                                        UserItemDescr: item,
+                                },
+                                err: err, // storing err, to be processed later
+                        }
+                }</span>)
+                <span class="cov8" title="1">if err != nil </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("wp exec: %w", err)
+                }</span>
+        }
+        <span class="cov8" title="1">wg.Wait()
+
+        items := make([]model.ItemDescr, 0, len(cartItems))
+        var totalPrice uint32
+
+        for i := 0; i &lt; len(cartItems); i++ </span><span class="cov8" title="1">{ // traversing through channel
+                curItem := &lt;-itemsChan  // reading from result channel
+                if curItem.err != nil </span><span class="cov0" title="0">{ // checking each response of getproduct on errors
+                        return nil, fmt.Errorf("get product response: %w", curItem.err)
+                }</span>
+
+                // generating final result
+                <span class="cov8" title="1">items = append(items, curItem.itemDescr)
+                totalPrice += curItem.itemDescr.UserItemDescr.Price * (uint32(curItem.itemDescr.CartDescr.Count))</span>
+        }
+
+        // some logs
+        <span class="cov8" title="1">log.Printf("User's %d items", user)
+        for _, item := range items </span><span class="cov8" title="1">{
+                log.Printf("Item: %s, Price: %d", item.UserItemDescr.Name, item.UserItemDescr.Price)
+        }</span>
+        <span class="cov8" title="1">log.Printf("Total price: %d", totalPrice)
+
+        return &amp;model.ListCartDescr{
+                TotalPrice: totalPrice,
+                ItemsDescr: items,
+        }, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Code generated by mockery v2.30.1. DO NOT EDIT.
+
+package checkout
+
+import (
+        context "context"
+        model "route256/checkout/internal/model"
+
+        mock "github.com/stretchr/testify/mock"
+)
+
+// MockCartLister is an autogenerated mock type for the CartLister type
+type MockCartLister struct {
+        mock.Mock
+}
+
+// GetProducts provides a mock function with given fields: ctx, sku
+func (_m *MockCartLister) GetProducts(ctx context.Context, sku uint32) (model.Item, error) <span class="cov8" title="1">{
+        ret := _m.Called(ctx, sku)
+
+        var r0 model.Item
+        var r1 error
+        if rf, ok := ret.Get(0).(func(context.Context, uint32) (model.Item, error)); ok </span><span class="cov0" title="0">{
+                return rf(ctx, sku)
+        }</span>
+        <span class="cov8" title="1">if rf, ok := ret.Get(0).(func(context.Context, uint32) model.Item); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, sku)
+        }</span> else<span class="cov8" title="1"> {
+                r0 = ret.Get(0).(model.Item)
+        }</span>
+
+        <span class="cov8" title="1">if rf, ok := ret.Get(1).(func(context.Context, uint32) error); ok </span><span class="cov0" title="0">{
+                r1 = rf(ctx, sku)
+        }</span> else<span class="cov8" title="1"> {
+                r1 = ret.Error(1)
+        }</span>
+
+        <span class="cov8" title="1">return r0, r1</span>
+}
+
+// NewMockCartLister creates a new instance of MockCartLister. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewMockCartLister(t interface {
+        mock.TestingT
+        Cleanup(func())
+}) *MockCartLister <span class="cov8" title="1">{
+        mock := &amp;MockCartLister{}
+        mock.Mock.Test(t)
+
+        t.Cleanup(func() </span><span class="cov8" title="1">{ mock.AssertExpectations(t) }</span>)
+
+        <span class="cov8" title="1">return mock</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">// Code generated by mockery v2.30.1. DO NOT EDIT.
+
+package checkout
+
+import (
+        context "context"
+        model "route256/checkout/internal/model"
+
+        mock "github.com/stretchr/testify/mock"
+)
+
+// MockCartRepository is an autogenerated mock type for the CartRepository type
+type MockCartRepository struct {
+        mock.Mock
+}
+
+// AddToCart provides a mock function with given fields: ctx, user, sku, count
+func (_m *MockCartRepository) AddToCart(ctx context.Context, user int64, sku uint32, count uint16) error <span class="cov0" title="0">{
+        ret := _m.Called(ctx, user, sku, count)
+
+        var r0 error
+        if rf, ok := ret.Get(0).(func(context.Context, int64, uint32, uint16) error); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, user, sku, count)
+        }</span> else<span class="cov0" title="0"> {
+                r0 = ret.Error(0)
+        }</span>
+
+        <span class="cov0" title="0">return r0</span>
+}
+
+// DeleteFromCart provides a mock function with given fields: ctx, user, sku, count
+func (_m *MockCartRepository) DeleteFromCart(ctx context.Context, user int64, sku uint32, count uint16) error <span class="cov0" title="0">{
+        ret := _m.Called(ctx, user, sku, count)
+
+        var r0 error
+        if rf, ok := ret.Get(0).(func(context.Context, int64, uint32, uint16) error); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, user, sku, count)
+        }</span> else<span class="cov0" title="0"> {
+                r0 = ret.Error(0)
+        }</span>
+
+        <span class="cov0" title="0">return r0</span>
+}
+
+// GetUserItems provides a mock function with given fields: ctx, user
+func (_m *MockCartRepository) GetUserItems(ctx context.Context, user int64) ([]model.Cart, error) <span class="cov8" title="1">{
+        ret := _m.Called(ctx, user)
+
+        var r0 []model.Cart
+        var r1 error
+        if rf, ok := ret.Get(0).(func(context.Context, int64) ([]model.Cart, error)); ok </span><span class="cov0" title="0">{
+                return rf(ctx, user)
+        }</span>
+        <span class="cov8" title="1">if rf, ok := ret.Get(0).(func(context.Context, int64) []model.Cart); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, user)
+        }</span> else<span class="cov8" title="1"> {
+                if ret.Get(0) != nil </span><span class="cov8" title="1">{
+                        r0 = ret.Get(0).([]model.Cart)
+                }</span>
+        }
+
+        <span class="cov8" title="1">if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok </span><span class="cov0" title="0">{
+                r1 = rf(ctx, user)
+        }</span> else<span class="cov8" title="1"> {
+                r1 = ret.Error(1)
+        }</span>
+
+        <span class="cov8" title="1">return r0, r1</span>
+}
+
+// GetUserSkuItemCount provides a mock function with given fields: ctx, user, sku
+func (_m *MockCartRepository) GetUserSkuItemCount(ctx context.Context, user int64, sku uint32) (uint16, error) <span class="cov0" title="0">{
+        ret := _m.Called(ctx, user, sku)
+
+        var r0 uint16
+        var r1 error
+        if rf, ok := ret.Get(0).(func(context.Context, int64, uint32) (uint16, error)); ok </span><span class="cov0" title="0">{
+                return rf(ctx, user, sku)
+        }</span>
+        <span class="cov0" title="0">if rf, ok := ret.Get(0).(func(context.Context, int64, uint32) uint16); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, user, sku)
+        }</span> else<span class="cov0" title="0"> {
+                r0 = ret.Get(0).(uint16)
+        }</span>
+
+        <span class="cov0" title="0">if rf, ok := ret.Get(1).(func(context.Context, int64, uint32) error); ok </span><span class="cov0" title="0">{
+                r1 = rf(ctx, user, sku)
+        }</span> else<span class="cov0" title="0"> {
+                r1 = ret.Error(1)
+        }</span>
+
+        <span class="cov0" title="0">return r0, r1</span>
+}
+
+// NewMockCartRepository creates a new instance of MockCartRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewMockCartRepository(t interface {
+        mock.TestingT
+        Cleanup(func())
+}) *MockCartRepository <span class="cov8" title="1">{
+        mock := &amp;MockCartRepository{}
+        mock.Mock.Test(t)
+
+        t.Cleanup(func() </span><span class="cov8" title="1">{ mock.AssertExpectations(t) }</span>)
+
+        <span class="cov8" title="1">return mock</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">// Code generated by mockery v2.30.1. DO NOT EDIT.
+
+package checkout
+
+import (
+        context "context"
+        model "route256/checkout/internal/model"
+
+        mock "github.com/stretchr/testify/mock"
+)
+
+// MockOrderCreator is an autogenerated mock type for the OrderCreator type
+type MockOrderCreator struct {
+        mock.Mock
+}
+
+// Purchase provides a mock function with given fields: ctx, user, items
+func (_m *MockOrderCreator) Purchase(ctx context.Context, user int64, items []model.Cart) (int64, error) <span class="cov8" title="1">{
+        ret := _m.Called(ctx, user, items)
+
+        var r0 int64
+        var r1 error
+        if rf, ok := ret.Get(0).(func(context.Context, int64, []model.Cart) (int64, error)); ok </span><span class="cov0" title="0">{
+                return rf(ctx, user, items)
+        }</span>
+        <span class="cov8" title="1">if rf, ok := ret.Get(0).(func(context.Context, int64, []model.Cart) int64); ok </span><span class="cov0" title="0">{
+                r0 = rf(ctx, user, items)
+        }</span> else<span class="cov8" title="1"> {
+                r0 = ret.Get(0).(int64)
+        }</span>
+
+        <span class="cov8" title="1">if rf, ok := ret.Get(1).(func(context.Context, int64, []model.Cart) error); ok </span><span class="cov0" title="0">{
+                r1 = rf(ctx, user, items)
+        }</span> else<span class="cov8" title="1"> {
+                r1 = ret.Error(1)
+        }</span>
+
+        <span class="cov8" title="1">return r0, r1</span>
+}
+
+// NewMockOrderCreator creates a new instance of MockOrderCreator. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewMockOrderCreator(t interface {
+        mock.TestingT
+        Cleanup(func())
+}) *MockOrderCreator <span class="cov8" title="1">{
+        mock := &amp;MockOrderCreator{}
+        mock.Mock.Test(t)
+
+        t.Cleanup(func() </span><span class="cov8" title="1">{ mock.AssertExpectations(t) }</span>)
+
+        <span class="cov8" title="1">return mock</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package checkout
+
+import (
+        "context"
+        "fmt"
+        "log"
+)
+
+/*
+Purchase invokes createOrder in loms(clients/loms/loms_order) with users items in cart
+called with checkout(localhost):8080/purchase
+*/
+func (s *Service) Purchase(ctx context.Context, user int64) (int64, error) <span class="cov8" title="1">{
+        cartItems, err := s.cartRepo.GetUserItems(ctx, user)
+        if err != nil </span><span class="cov8" title="1">{
+                return 0, ErrNoUserCart
+        }</span>
+
+        <span class="cov8" title="1">orderID, err := s.orderCreator.Purchase(ctx, user, cartItems)
+        if err != nil </span><span class="cov8" title="1">{
+                return 0, fmt.Errorf("purchase: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">log.Printf("User's %d orderID: %d", user, orderID)
+
+        return orderID, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package checkout
+
+import (
+        "context"
+        "errors"
+        "route256/checkout/internal/clients/loms"
+        "route256/checkout/internal/clients/product"
+        "route256/checkout/internal/config"
+        "route256/checkout/internal/model"
+)
+
+type StockChecker interface {
+        Stocks(ctx context.Context, sku uint32) ([]model.Stock, error)
+}
+
+type OrderCreator interface {
+        Purchase(ctx context.Context, user int64, items []model.Cart) (int64, error)
+}
+
+type CartLister interface {
+        GetProducts(ctx context.Context, sku uint32) (model.Item, error)
+}
+
+type TransactionManager interface {
+        RunRepeatableRead(ctx context.Context, fn func(ctxTx context.Context) error) error
+}
+
+type CartRepository interface {
+        AddToCart(ctx context.Context, user int64, sku uint32, count uint16) error
+        DeleteFromCart(ctx context.Context, user int64, sku uint32, count uint16) error
+        GetUserSkuItemCount(ctx context.Context, user int64, sku uint32) (uint16, error)
+        GetUserItems(ctx context.Context, user int64) ([]model.Cart, error)
+}
+
+type Service struct {
+        stockChecker       StockChecker
+        orderCreator       OrderCreator
+        cartRepo           CartRepository
+        transactionManager TransactionManager
+        cartLister         CartLister
+}
+
+func NewService(tx TransactionManager, repo CartRepository) *Service <span class="cov0" title="0">{
+        return &amp;Service{
+                stockChecker:       loms.NewClient(config.AppConfig.Services.Loms),
+                orderCreator:       loms.NewClient(config.AppConfig.Services.Loms),
+                cartLister:         product.NewClient(config.AppConfig.Services.Product),
+                transactionManager: tx,
+                cartRepo:           repo,
+        }
+}</span>
+
+var (
+        ErrStockInsufficient = errors.New("stock insufficient")
+        ErrCartInsufficient  = errors.New("cart insufficient")
+        ErrNoCarts           = errors.New("no carts")
+        ErrNoUserCart        = errors.New("no cart for user")
+)
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
